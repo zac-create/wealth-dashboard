@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zac — Wealth Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0b0e;
+    --surface: #111318;
+    --surface2: #181c24;
+    --border: #1e2330;
+    --accent: #00e5a0;
+    --accent2: #0099ff;
+    --accent3: #ff6b35;
+    --text: #e8eaf0;
+    --muted: #5a6070;
+    --green: #00e5a0;
+    --red: #ff4757;
+    --yellow: #ffd32a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  /* NAV */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.2rem 2rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.1rem;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+  }
+  .logo span { color: var(--text); }
+  .nav-tabs {
+    display: flex;
+    gap: 0.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+  }
+  .nav-tab {
+    padding: 0.4rem 1rem;
+    border-radius: 5px;
+    border: none;
+    background: none;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .nav-tab.active {
+    background: var(--accent);
+    color: #000;
+    font-weight: 500;
+  }
+  .nav-tab:hover:not(.active) { color: var(--text); }
+
+  /* PAGES */
+  .page { display: none; padding: 2rem; max-width: 1200px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  /* OVERVIEW PAGE */
+  .total-hero {
+    text-align: center;
+    padding: 3rem 0 2rem;
+    position: relative;
+  }
+  .total-hero::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 400px;
+    height: 200px;
+    background: radial-gradient(ellipse, rgba(0,229,160,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .total-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+  .total-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 4rem;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .total-change {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 0.5rem;
+  }
+  .total-change.pos { color: var(--green); }
+  .total-change.neg { color: var(--red); }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+  .card-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+  .card-sub {
+    font-size: 0.65rem;
+    color: var(--muted);
+  }
+  .card-sub.pos { color: var(--green); }
+  .card-sub.neg { color: var(--red); }
+  .card-accent-stocks { border-left: 3px solid var(--accent); }
+  .card-accent-lisa { border-left: 3px solid var(--accent2); }
+  .card-accent-bank { border-left: 3px solid var(--yellow); }
+  .card-accent-loan { border-left: 3px solid var(--accent3); }
+
+  .chart-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .chart-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 1.25rem;
+    color: var(--text);
+    letter-spacing: 0.05em;
+  }
+  .chart-wrap { position: relative; height: 280px; }
+
+  /* LOG PAGE */
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 1.25rem;
+    color: var(--accent);
+    letter-spacing: 0.03em;
+  }
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+  .form-group label {
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .form-group input, .form-group select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    padding: 0.6rem 0.8rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+  .form-group input::placeholder { color: var(--muted); }
+
+  .section-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 1.5rem 0;
+  }
+  .subsection {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .subsection-title {
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .subsection-title::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+  .subsection-title.blue::before { background: var(--accent2); }
+  .subsection-title.yellow::before { background: var(--yellow); }
+  .subsection-title.orange::before { background: var(--accent3); }
+
+  .btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    padding: 0.7rem 1.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+  .btn:hover { background: #00ffb3; transform: translateY(-1px); }
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-secondary:hover { background: var(--border); color: var(--text); }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-danger:hover { background: #ff6b7a; color: #fff; }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
+  th {
+    text-align: left;
+    padding: 0.6rem 0.8rem;
+    color: var(--muted);
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-size: 0.6rem;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 0.7rem 0.8rem;
+    border-bottom: 1px solid rgba(30,35,48,0.5);
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+  .tag {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .tag-stocks { background: rgba(0,229,160,0.12); color: var(--accent); }
+  .tag-lisa { background: rgba(0,153,255,0.12); color: var(--accent2); }
+  .tag-bank { background: rgba(255,211,42,0.12); color: var(--yellow); }
+  .tag-loan { background: rgba(255,107,53,0.12); color: var(--accent3); }
+
+  /* PROJECTIONS */
+  .proj-controls {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .proj-btn {
+    padding: 0.4rem 1rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+  }
+  .proj-btn.active {
+    background: var(--accent);
+    color: #000;
+    border-color: var(--accent);
+  }
+  .proj-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .proj-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    text-align: center;
+  }
+  .proj-year {
+    font-size: 0.6rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  .proj-amount {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--accent);
+  }
+  .proj-growth {
+    font-size: 0.65rem;
+    color: var(--muted);
+    margin-top: 0.3rem;
+  }
+  .proj-note {
+    font-size: 0.62rem;
+    color: var(--muted);
+    padding: 0.8rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+  }
+
+  /* TOAST */
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: var(--accent);
+    color: #000;
+    padding: 0.7rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    z-index: 999;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  .empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: var(--muted);
+    font-size: 0.75rem;
+    line-height: 2;
+  }
+
+  @media (max-width: 600px) {
+    nav { padding: 1rem; flex-direction: column; gap: 0.75rem; }
+    .page { padding: 1rem; }
+    .total-value { font-size: 2.5rem; }
+    .proj-cards { grid-template-columns: 1fr; }
+    .nav-tab { padding: 0.4rem 0.6rem; font-size: 0.6rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">ZAC<span>·WEALTH</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" id="tab-overview" onclick="showPage('overview', this)">Overview</button>
+    <button class="nav-tab" id="tab-log" onclick="showPage('log', this)">Log Entry</button>
+    <button class="nav-tab" id="tab-history" onclick="showPage('history', this)">History</button>
+    <button class="nav-tab" id="tab-projections" onclick="showPage('projections', this)">Projections</button>
+  </div>
+</nav>
+
+<!-- OVERVIEW -->
+<div class="page active" id="page-overview">
+  <div class="total-hero">
+    <div class="total-label">Total Net Worth</div>
+    <div class="total-value" id="overview-total">£0.00</div>
+    <div class="total-change" id="overview-change">— no data yet</div>
+  </div>
+
+  <div class="cards-grid">
+    <div class="card card-accent-stocks">
+      <div class="card-label">Stocks ISA</div>
+      <div class="card-value" id="card-stocks">£0.00</div>
+      <div class="card-sub" id="card-stocks-sub">No data</div>
+    </div>
+    <div class="card card-accent-lisa">
+      <div class="card-label">Lifetime ISA</div>
+      <div class="card-value" id="card-lisa">£0.00</div>
+      <div class="card-sub" id="card-lisa-sub">No data</div>
+    </div>
+    <div class="card card-accent-bank">
+      <div class="card-label">Bank Accounts</div>
+      <div class="card-value" id="card-bank">£0.00</div>
+      <div class="card-sub" id="card-bank-sub">No data</div>
+    </div>
+    <div class="card card-accent-loan">
+      <div class="card-label">Total Debt</div>
+      <div class="card-value neg" id="card-loan">£0.00</div>
+      <div class="card-sub" id="card-loan-sub">Balance transfer cards</div>
+    </div>
+  </div>
+
+  <div class="chart-container">
+    <div class="chart-title">Net Worth Over Time</div>
+    <div class="chart-wrap"><canvas id="chart-overview"></canvas></div>
+  </div>
+
+  <div class="chart-container">
+    <div class="chart-title">Portfolio Breakdown — Latest Month</div>
+    <div class="chart-wrap" style="height:220px"><canvas id="chart-donut"></canvas></div>
+  </div>
+</div>
+
+<!-- LOG ENTRY -->
+<div class="page" id="page-log">
+  <div class="section-title">Log Monthly Snapshot</div>
+
+  <div class="subsection">
+    <div class="subsection-title">Month & Year</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Month</label>
+        <select id="log-month">
+          <option value="1">January</option><option value="2">February</option>
+          <option value="3">March</option><option value="4">April</option>
+          <option value="5">May</option><option value="6" selected>June</option>
+          <option value="7">July</option><option value="8">August</option>
+          <option value="9">September</option><option value="10">October</option>
+          <option value="11">November</option><option value="12">December</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Year</label>
+        <input type="number" id="log-year" value="2026" min="2020" max="2060">
+      </div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title">Stocks ISA</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Total ISA Value (£)</label>
+        <input type="number" id="log-isa-value" placeholder="e.g. 3600" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>Contributions This Month (£)</label>
+        <input type="number" id="log-isa-contrib" placeholder="e.g. 1000" step="0.01">
+      </div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title blue">Lifetime ISA (LISA)</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Total LISA Value (£)</label>
+        <input type="number" id="log-lisa-value" placeholder="e.g. 3915" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>Contributions This Month (£)</label>
+        <input type="number" id="log-lisa-contrib" placeholder="e.g. 200" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>Govt Bonus Received (£)</label>
+        <input type="number" id="log-lisa-bonus" placeholder="e.g. 200" step="0.01">
+      </div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title yellow">Bank Accounts</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Current Account 1 (£)</label>
+        <input type="number" id="log-bank1" placeholder="e.g. 500" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>Current Account 2 (£)</label>
+        <input type="number" id="log-bank2" placeholder="e.g. 300" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>Savings Account (£)</label>
+        <input type="number" id="log-savings" placeholder="e.g. 1000" step="0.01">
+      </div>
+    </div>
+  </div>
+
+  <div class="subsection">
+    <div class="subsection-title orange">Debt (Balance Transfer Cards)</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Total Debt Owed (£) — enter as positive</label>
+        <input type="number" id="log-loan" placeholder="e.g. 1500" step="0.01" min="0">
+      </div>
+    </div>
+    <div style="font-size:0.62rem; color:var(--muted); margin-top:0.25rem;">This will be subtracted from your net worth automatically.</div>
+  </div>
+
+  <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+    <button class="btn" onclick="saveEntry()">Save Snapshot</button>
+    <button class="btn btn-secondary" onclick="clearForm()">Clear</button>
+  </div>
+</div>
+
+<!-- HISTORY -->
+<div class="page" id="page-history">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+    <div class="section-title" style="margin:0">Entry History</div>
+    <button class="btn btn-danger" onclick="clearAllData()" style="font-size:0.65rem; padding:0.5rem 1rem;">Clear All Data</button>
+  </div>
+  <div class="chart-container" style="margin-bottom:1.5rem;">
+    <div class="chart-title">ISA Growth vs Contributions</div>
+    <div class="chart-wrap"><canvas id="chart-isa-growth"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="table-wrap">
+      <table id="history-table">
+        <thead>
+          <tr>
+            <th>Period</th>
+            <th>ISA Value</th>
+            <th>ISA Contribs</th>
+            <th>LISA Value</th>
+            <th>Banks Total</th>
+            <th>Debt</th>
+            <th>Net Worth</th>
+            <th>MoM Change</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="history-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- PROJECTIONS -->
+<div class="page" id="page-projections">
+  <div class="section-title">Growth Projections</div>
+
+  <div class="proj-note" id="proj-note">
+    ⚡ Projections are calculated from your actual month-to-month growth trend. Add at least 2 months of data to see personalised projections. Until then, a default 8% annual growth rate is used.
+  </div>
+
+  <div class="proj-controls">
+    <button class="proj-btn active" onclick="setProjMode('total')" id="proj-total-btn">Total Net Worth</button>
+    <button class="proj-btn" onclick="setProjMode('isa')" id="proj-isa-btn">Stocks ISA</button>
+    <button class="proj-btn" onclick="setProjMode('lisa')" id="proj-lisa-btn">LISA</button>
+  </div>
+
+  <div class="proj-cards">
+    <div class="proj-card">
+      <div class="proj-year">1 Year</div>
+      <div class="proj-amount" id="proj-1y">—</div>
+      <div class="proj-growth" id="proj-1y-sub">—</div>
+    </div>
+    <div class="proj-card">
+      <div class="proj-year">5 Years</div>
+      <div class="proj-amount" id="proj-5y">—</div>
+      <div class="proj-growth" id="proj-5y-sub">—</div>
+    </div>
+    <div class="proj-card">
+      <div class="proj-year">25 Years</div>
+      <div class="proj-amount" id="proj-25y">—</div>
+      <div class="proj-growth" id="proj-25y-sub">—</div>
+    </div>
+  </div>
+
+  <div class="chart-container">
+    <div class="chart-title">Projected Growth Over 25 Years</div>
+    <div class="chart-wrap" style="height:320px"><canvas id="chart-proj"></canvas></div>
+  </div>
+
+  <div style="font-size:0.6rem; color:var(--muted); line-height:1.8; padding:1rem; background:var(--surface); border-radius:8px; border:1px solid var(--border);">
+    ⚠ Projections are illustrative only and not financial advice. Past growth rates do not guarantee future returns. Market conditions, contributions, and withdrawals will affect actual outcomes.
+  </div>
+</div>
+
+<div class="toast" id="toast">Snapshot saved!</div>
+
+<script>
+// ---- DATA ----
+let entries = JSON.parse(localStorage.getItem('zac_wealth_entries') || '[]');
+
+const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function fmt(n) {
+  return '£' + Number(n).toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function fmtChange(n) {
+  const sign = n >= 0 ? '+' : '';
+  return sign + fmt(n);
+}
+
+// ---- NAV ----
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  else { var el = document.getElementById('tab-' + id); if (el) el.classList.add('active'); }
+  if (id === 'overview') renderOverview();
+  if (id === 'history') renderHistory();
+  if (id === 'projections') renderProjections();
+}
+
+// ---- SAVE ----
+function saveEntry() {
+  const month = parseInt(document.getElementById('log-month').value);
+  const year = parseInt(document.getElementById('log-year').value);
+  const isaValue = parseFloat(document.getElementById('log-isa-value').value) || 0;
+  const isaContrib = parseFloat(document.getElementById('log-isa-contrib').value) || 0;
+  const lisaValue = parseFloat(document.getElementById('log-lisa-value').value) || 0;
+  const lisaContrib = parseFloat(document.getElementById('log-lisa-contrib').value) || 0;
+  const lisaBonus = parseFloat(document.getElementById('log-lisa-bonus').value) || 0;
+  const bank1 = parseFloat(document.getElementById('log-bank1').value) || 0;
+  const bank2 = parseFloat(document.getElementById('log-bank2').value) || 0;
+  const savings = parseFloat(document.getElementById('log-savings').value) || 0;
+  const loan = parseFloat(document.getElementById('log-loan').value) || 0;
+
+  const banksTotal = bank1 + bank2 + savings;
+  const debt = loan; // stored as positive, displayed as negative, subtracted from net worth
+  const netWorth = isaValue + lisaValue + banksTotal - debt;
+  const key = year * 100 + month;
+
+  const existing = entries.findIndex(e => e.key === key);
+  const entry = { key, month, year, isaValue, isaContrib, lisaValue, lisaContrib, lisaBonus, bank1, bank2, savings, banksTotal, loan: debt, netWorth };
+
+  if (existing >= 0) entries[existing] = entry;
+  else entries.push(entry);
+
+  entries.sort((a,b) => a.key - b.key);
+  localStorage.setItem('zac_wealth_entries', JSON.stringify(entries));
+  showToast('Snapshot saved!');
+}
+
+function clearForm() {
+  ['log-isa-value','log-isa-contrib','log-lisa-value','log-lisa-contrib','log-lisa-bonus','log-bank1','log-bank2','log-savings','log-loan'].forEach(id => document.getElementById(id).value = '');
+}
+
+function clearAllData() {
+  if (confirm('Delete ALL saved data? This cannot be undone.')) {
+    entries = [];
+    localStorage.removeItem('zac_wealth_entries');
+    renderHistory();
+    showToast('All data cleared.');
+  }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ---- OVERVIEW ----
+let chartOverview, chartDonut;
+
+function renderOverview() {
+  const totalEl = document.getElementById('overview-total');
+  const changeEl = document.getElementById('overview-change');
+
+  if (!entries.length) {
+    totalEl.textContent = '£0.00';
+    changeEl.textContent = '— no data yet';
+    return;
+  }
+
+  const latest = entries[entries.length - 1];
+  totalEl.textContent = fmt(latest.netWorth);
+
+  if (entries.length >= 2) {
+    const prev = entries[entries.length - 2];
+    const diff = latest.netWorth - prev.netWorth;
+    const pct = ((diff / prev.netWorth) * 100).toFixed(2);
+    changeEl.textContent = fmtChange(diff) + ' (' + (diff >= 0 ? '+' : '') + pct + '%) vs last month';
+    changeEl.className = 'total-change ' + (diff >= 0 ? 'pos' : 'neg');
+  }
+
+  // cards
+  const prevEntry = entries.length >= 2 ? entries[entries.length - 2] : null;
+  setCard('card-stocks', latest.isaValue, prevEntry ? latest.isaValue - prevEntry.isaValue : null, 'stocks');
+  setCard('card-lisa', latest.lisaValue, prevEntry ? latest.lisaValue - prevEntry.lisaValue : null, 'lisa');
+  setCard('card-bank', latest.banksTotal, prevEntry ? latest.banksTotal - prevEntry.banksTotal : null, 'bank');
+  document.getElementById('card-loan').textContent = '-' + fmt(latest.loan);
+  document.getElementById('card-loan-sub').textContent = latest.loan > 0 ? 'Reducing your net worth' : 'No debt logged';
+
+  // line chart
+  const labels = entries.map(e => months[e.month-1] + ' ' + e.year);
+  const data = entries.map(e => e.netWorth);
+
+  if (chartOverview) chartOverview.destroy();
+  chartOverview = new Chart(document.getElementById('chart-overview'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Net Worth',
+        data,
+        borderColor: '#00e5a0',
+        backgroundColor: 'rgba(0,229,160,0.07)',
+        borderWidth: 2,
+        pointBackgroundColor: '#00e5a0',
+        pointRadius: 4,
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: chartOpts('£')
+  });
+
+  // donut
+  if (chartDonut) chartDonut.destroy();
+  chartDonut = new Chart(document.getElementById('chart-donut'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Stocks ISA', 'LISA', 'Banks', 'Debt'],
+      datasets: [{
+        data: [latest.isaValue, latest.lisaValue, latest.banksTotal, latest.loan],
+        backgroundColor: ['#00e5a0','#0099ff','#ffd32a','#ff6b35'],
+        borderColor: '#111318',
+        borderWidth: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#5a6070', font: { family: 'JetBrains Mono', size: 11 }, padding: 16 } },
+        tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.raw) } }
+      },
+      cutout: '65%'
+    }
+  });
+}
+
+function setCard(id, value, diff, type) {
+  document.getElementById(id).textContent = fmt(value);
+  const sub = document.getElementById(id + '-sub');
+  if (diff !== null) {
+    sub.textContent = fmtChange(diff) + ' vs last month';
+    sub.className = 'card-sub ' + (diff >= 0 ? 'pos' : 'neg');
+  } else {
+    sub.textContent = 'First entry';
+    sub.className = 'card-sub';
+  }
+}
+
+// ---- HISTORY ----
+let chartIsaGrowth;
+
+function renderHistory() {
+  const tbody = document.getElementById('history-body');
+  if (!entries.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state">No entries yet.<br>Log your first snapshot on the Log Entry tab.</div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = entries.map((e, i) => {
+    const prev = i > 0 ? entries[i-1] : null;
+    const diff = prev ? e.netWorth - prev.netWorth : null;
+    const pct = prev ? ((diff / prev.netWorth)*100).toFixed(1) : null;
+    return `<tr>
+      <td>${months[e.month-1]} ${e.year}</td>
+      <td>${fmt(e.isaValue)}</td>
+      <td class="pos">+${fmt(e.isaContrib)}</td>
+      <td>${fmt(e.lisaValue)}</td>
+      <td>${fmt(e.banksTotal)}</td>
+      <td class="neg">${e.loan > 0 ? '-' + fmt(e.loan) : '—'}</td>
+      <td style="font-weight:500">${fmt(e.netWorth)}</td>
+      <td class="${diff === null ? '' : diff >= 0 ? 'pos' : 'neg'}">${diff === null ? '—' : fmtChange(diff) + ' (' + (diff>=0?'+':'') + pct + '%)'}</td>
+      <td><button class="btn btn-danger" style="padding:0.2rem 0.5rem;font-size:0.6rem;" onclick="deleteEntry(${e.key})">✕</button></td>
+    </tr>`;
+  }).join('');
+
+  // ISA growth chart
+  const labels = entries.map(e => months[e.month-1] + ' ' + e.year);
+  const isaVals = entries.map(e => e.isaValue);
+  const cumContribs = [];
+  let running = 0;
+  entries.forEach(e => { running += e.isaContrib; cumContribs.push(running); });
+
+  if (chartIsaGrowth) chartIsaGrowth.destroy();
+  chartIsaGrowth = new Chart(document.getElementById('chart-isa-growth'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'ISA Value', data: isaVals, borderColor: '#00e5a0', backgroundColor: 'rgba(0,229,160,0.07)', borderWidth: 2, pointRadius: 4, fill: true, tension: 0.3 },
+        { label: 'Cumulative Contributions', data: cumContribs, borderColor: '#0099ff', backgroundColor: 'rgba(0,153,255,0.05)', borderWidth: 2, pointRadius: 4, borderDash: [5,4], fill: true, tension: 0.3 }
+      ]
+    },
+    options: chartOpts('£')
+  });
+}
+
+function deleteEntry(key) {
+  if (!confirm('Delete this entry?')) return;
+  entries = entries.filter(e => e.key !== key);
+  localStorage.setItem('zac_wealth_entries', JSON.stringify(entries));
+  renderHistory();
+  showToast('Entry deleted.');
+}
+
+// ---- PROJECTIONS ----
+let projMode = 'total';
+let chartProj;
+
+function setProjMode(mode) {
+  projMode = mode;
+  document.querySelectorAll('.proj-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('proj-' + mode + '-btn').classList.add('active');
+  renderProjections();
+}
+
+function getMonthlyGrowthRate(field) {
+  if (entries.length < 2) return null;
+  const rates = [];
+  for (let i = 1; i < entries.length; i++) {
+    const prev = entries[i-1][field];
+    const curr = entries[i][field];
+    if (prev > 0) rates.push((curr - prev) / prev);
+  }
+  if (!rates.length) return null;
+  return rates.reduce((a,b) => a+b, 0) / rates.length;
+}
+
+function renderProjections() {
+  const fieldMap = { total: 'netWorth', isa: 'isaValue', lisa: 'lisaValue' };
+  const field = fieldMap[projMode];
+  const latest = entries.length ? entries[entries.length-1][field] : 0;
+  const baseValue = latest || 0;
+
+  let monthlyRate = getMonthlyGrowthRate(field);
+  const hasTrend = monthlyRate !== null;
+  const defaultAnnual = 0.08;
+  if (!hasTrend) monthlyRate = Math.pow(1 + defaultAnnual, 1/12) - 1;
+
+  const annualRate = Math.pow(1 + monthlyRate, 12) - 1;
+
+  const noteEl = document.getElementById('proj-note');
+  if (hasTrend) {
+    noteEl.textContent = `📈 Using your actual trend: ${(annualRate*100).toFixed(1)}% annualised growth rate based on ${entries.length} months of data.`;
+  } else {
+    noteEl.textContent = `⚡ Not enough data for a personalised trend yet. Using default 8% annual growth. Add more monthly snapshots to see your real trend.`;
+  }
+
+  const proj1 = baseValue * Math.pow(1+monthlyRate, 12);
+  const proj5 = baseValue * Math.pow(1+monthlyRate, 60);
+  const proj25 = baseValue * Math.pow(1+monthlyRate, 300);
+
+  document.getElementById('proj-1y').textContent = fmt(proj1);
+  document.getElementById('proj-1y-sub').textContent = fmtChange(proj1 - baseValue) + ' growth';
+  document.getElementById('proj-5y').textContent = fmt(proj5);
+  document.getElementById('proj-5y-sub').textContent = fmtChange(proj5 - baseValue) + ' growth';
+  document.getElementById('proj-25y').textContent = fmt(proj25);
+  document.getElementById('proj-25y-sub').textContent = fmtChange(proj25 - baseValue) + ' growth';
+
+  // Build 25y chart (yearly data points)
+  const projLabels = [];
+  const projData = [];
+  const now = new Date();
+  const startYear = now.getFullYear();
+  for (let y = 0; y <= 25; y++) {
+    projLabels.push(startYear + y);
+    projData.push(baseValue * Math.pow(1+monthlyRate, y*12));
+  }
+
+  // Pessimistic & optimistic bands
+  const pessRate = Math.max(monthlyRate * 0.5, 0.002);
+  const optimRate = monthlyRate * 1.5;
+  const pessData = projLabels.map((_,i) => baseValue * Math.pow(1+pessRate, i*12));
+  const optimData = projLabels.map((_,i) => baseValue * Math.pow(1+optimRate, i*12));
+
+  if (chartProj) chartProj.destroy();
+  chartProj = new Chart(document.getElementById('chart-proj'), {
+    type: 'line',
+    data: {
+      labels: projLabels,
+      datasets: [
+        { label: 'Optimistic', data: optimData, borderColor: 'rgba(0,229,160,0.3)', backgroundColor: 'rgba(0,229,160,0.04)', borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.3, borderDash: [3,3] },
+        { label: 'Projected', data: projData, borderColor: '#00e5a0', backgroundColor: 'rgba(0,229,160,0.06)', borderWidth: 2.5, pointRadius: 3, fill: true, tension: 0.3 },
+        { label: 'Pessimistic', data: pessData, borderColor: 'rgba(255,71,87,0.4)', backgroundColor: 'rgba(255,71,87,0.03)', borderWidth: 1.5, pointRadius: 0, fill: false, tension: 0.3, borderDash: [3,3] }
+      ]
+    },
+    options: chartOpts('£')
+  });
+}
+
+// ---- CHART DEFAULTS ----
+function chartOpts(prefix) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { labels: { color: '#5a6070', font: { family: 'JetBrains Mono', size: 11 }, padding: 16 } },
+      tooltip: {
+        backgroundColor: '#181c24',
+        borderColor: '#1e2330',
+        borderWidth: 1,
+        titleColor: '#e8eaf0',
+        bodyColor: '#5a6070',
+        padding: 12,
+        callbacks: { label: ctx => ' ' + (prefix||'') + Number(ctx.raw).toLocaleString('en-GB', {minimumFractionDigits:2, maximumFractionDigits:2}) }
+      }
+    },
+    scales: {
+      x: { grid: { color: 'rgba(30,35,48,0.6)' }, ticks: { color: '#5a6070', font: { family: 'JetBrains Mono', size: 10 } } },
+      y: { grid: { color: 'rgba(30,35,48,0.6)' }, ticks: { color: '#5a6070', font: { family: 'JetBrains Mono', size: 10 }, callback: v => '£' + Number(v).toLocaleString('en-GB') } }
+    }
+  };
+}
+
+// ---- INIT ----
+renderOverview();
+</script>
+</body>
+</html>
